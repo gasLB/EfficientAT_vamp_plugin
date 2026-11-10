@@ -82,19 +82,11 @@ set(VPP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/package CACHE PATH "The directory of the
 include(vamp-plugin-packager/vamp-plugin-packager.cmake)
 
 ### Source ###
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/source/eat_vamp_plugin.cpp")
-  set(PLUGIN_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/source")
-elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/eat_vamp_plugin.cpp")
-  set(PLUGIN_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-else()
-	message(FATAL_ERROR "Cannot find eat_vamp_plugin.cpp in ${CMAKE_CURRENT_SOURCE_DIR} or ${CMAKE_CURRENT_SOURCE_DIR}/source")
-endif()
-
+set(PLUGIN_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/source")
 set(EFFICIENTAT_VAMP_PLUGIN_SOURCES
   "${PLUGIN_SOURCE_DIR}/eat_vamp_plugin.cpp"
   "${PLUGIN_SOURCE_DIR}/eat_vamp_plugin.h"
 )
-list(APPEND EFFICIENTAT_VAMP_PLUGIN_SOURCES ${EFFICIENTAT_VAMP_PLUGIN_LABELS_CPP})
 source_group("sources" FILES ${EFFICIENTAT_VAMP_PLUGIN_SOURCES})
 
 ### Target ###
