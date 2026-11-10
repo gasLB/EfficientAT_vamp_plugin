@@ -1,4 +1,4 @@
-#include "EfficientAT_vamp_plugin.h"
+#include "eat_vamp_plugin.h"
 #include <algorithm>
 #include <cassert>
 #include <cmath>

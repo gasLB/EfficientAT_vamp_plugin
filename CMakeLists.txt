@@ -82,35 +82,35 @@ set(VPP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/package CACHE PATH "The directory of the
 include(vamp-plugin-packager/vamp-plugin-packager.cmake)
 
 ### Source ###
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/source/EfficientAT_vamp_plugin.cpp")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/source/eat_vamp_plugin.cpp")
   set(PLUGIN_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/source")
-elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/EfficientAT_vamp_plugin.cpp")
+elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/eat_vamp_plugin.cpp")
   set(PLUGIN_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 else()
-	message(FATAL_ERROR "Cannot find EfficientAT_vamp_plugin.cpp in ${CMAKE_CURRENT_SOURCE_DIR} or ${CMAKE_CURRENT_SOURCE_DIR}/source")
+	message(FATAL_ERROR "Cannot find eat_vamp_plugin.cpp in ${CMAKE_CURRENT_SOURCE_DIR} or ${CMAKE_CURRENT_SOURCE_DIR}/source")
 endif()
 
 set(EFFICIENTAT_VAMP_PLUGIN_SOURCES
-  "${PLUGIN_SOURCE_DIR}/EfficientAT_vamp_plugin.cpp"
-  "${PLUGIN_SOURCE_DIR}/EfficientAT_vamp_plugin.h"
+  "${PLUGIN_SOURCE_DIR}/eat_vamp_plugin.cpp"
+  "${PLUGIN_SOURCE_DIR}/eat_vamp_plugin.h"
 )
 list(APPEND EFFICIENTAT_VAMP_PLUGIN_SOURCES ${EFFICIENTAT_VAMP_PLUGIN_LABELS_CPP})
 source_group("sources" FILES ${EFFICIENTAT_VAMP_PLUGIN_SOURCES})
 
 ### Target ###
-add_library(EfficientAT_vamp_plugin MODULE ${EFFICIENTAT_VAMP_PLUGIN_SOURCES})
-ive_prepare_plugin_target(EfficientAT_vamp_plugin)
-target_compile_definitions(EfficientAT_vamp_plugin PRIVATE USE_IVE_EXTENSION)
-target_include_directories(EfficientAT_vamp_plugin PRIVATE "${PLUGIN_SOURCE_DIR}")
+add_library(eat_vamp_plugin MODULE ${EFFICIENTAT_VAMP_PLUGIN_SOURCES})
+ive_prepare_plugin_target(eat_vamp_plugin)
+target_compile_definitions(eat_vamp_plugin PRIVATE USE_IVE_EXTENSION)
+target_include_directories(eat_vamp_plugin PRIVATE "${PLUGIN_SOURCE_DIR}")
 if(UNIX AND NOT APPLE)
-	target_link_libraries(EfficientAT_vamp_plugin PRIVATE stdc++fs)
+	target_link_libraries(eat_vamp_plugin PRIVATE stdc++fs)
 endif()
 
 if(EFFICIENTAT_VAMP_PLUGIN_TESTER_ENABLE)
   enable_testing()
 endif()
 
-vpp_add_plugin(EfficientAT_vamp_plugin
+vpp_add_plugin(eat_vamp_plugin
   ${CMAKE_CURRENT_SOURCE_DIR}/source/ircamEfficientAT.cat
   OUTPUT_NAME ircamEfficientAT
   COPYRIGHT "Copyright 2026 Ircam. All rights reserved"
@@ -123,15 +123,15 @@ vpp_add_plugin(EfficientAT_vamp_plugin
   TESTER_TIMEOUT ${EFFICIENTAT_VAMP_PLUGIN_TESTER_TIMEOUT}
 )
 
-vpp_create_clang_format_targets(EfficientAT_vamp_plugin "${EFFICIENTAT_VAMP_PLUGIN_SOURCES}")
+vpp_create_clang_format_targets(eat_vamp_plugin "${EFFICIENTAT_VAMP_PLUGIN_SOURCES}")
 
 ### LibTorch libraries and models ###
-setup_libtorch(EfficientAT_vamp_plugin)
+setup_libtorch(eat_vamp_plugin)
 
-add_custom_command(TARGET EfficientAT_vamp_plugin POST_BUILD
+add_custom_command(TARGET eat_vamp_plugin POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_directory
     "${CMAKE_CURRENT_BINARY_DIR}/models/"
-	"$<TARGET_FILE_DIR:EfficientAT_vamp_plugin>/../Resources/models"
+	"$<TARGET_FILE_DIR:eat_vamp_plugin>/../Resources/models"
 )
 
 ### Optional: Custom Unit Test Runner ###
