@@ -137,8 +137,8 @@ if(EFFICIENTAT_VAMP_PLUGIN_BUILD_UNIT_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_D
 endif()
 
 ### Publishing ###
-set(PROJECT_URL "https://github.com/Ircam-Partiels/EfficientAT-vamp-plugin")
-file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/EfficientAT-release.md "## Downloads\n")
-file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/EfficientAT-release.md "- [Classifier-Linux.zip](${PROJECT_URL}/releases/download/${EFFICIENTAT_VAMP_PLUGIN_BUILD_TAG}/Classifier-Linux.zip)\n")
-file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/EfficientAT-release.md "- [Classifier-MacOS.pkg](${PROJECT_URL}/releases/download/${EFFICIENTAT_VAMP_PLUGIN_BUILD_TAG}/Classifier-MacOS.pkg)\n")
-file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/EfficientAT-release.md "- [Classifier-Windows.exe](${PROJECT_URL}/releases/download/${EFFICIENTAT_VAMP_PLUGIN_BUILD_TAG}/Classifier-Windows.exe)\n")
+set(PROJECT_URL "https://github.com/Ircam-Partiels/efficientat-vamp-plugin")
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/efficientat-release.md "## Downloads\n")
+file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/efficientat-release.md "- [Classifier-Linux.zip](${PROJECT_URL}/releases/download/${EFFICIENTAT_VAMP_PLUGIN_BUILD_TAG}/Classifier-Linux.zip)\n")
+file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/efficientat-release.md "- [Classifier-MacOS.pkg](${PROJECT_URL}/releases/download/${EFFICIENTAT_VAMP_PLUGIN_BUILD_TAG}/Classifier-MacOS.pkg)\n")
+file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/efficientat-release.md "- [Classifier-Windows.exe](${PROJECT_URL}/releases/download/${EFFICIENTAT_VAMP_PLUGIN_BUILD_TAG}/Classifier-Windows.exe)\n")
