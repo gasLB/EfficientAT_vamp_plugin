@@ -568,9 +568,9 @@ void EfficientAT::Plugin::runModel(FeatureSet& fs)
             auto const framePosition = mFlatIndices.at(index);
 
             auto const timestamp = Vamp::RealTime::frame2RealTime(
-                framePosition * hopSizeSamples, static_cast<size_t>(mModelSampleRate));
+                framePosition * hopSizeSamples, static_cast<unsigned int>(mModelSampleRate));
             auto const duration = Vamp::RealTime::frame2RealTime(
-                hopSizeSamples, static_cast<size_t>(mModelSampleRate));
+                hopSizeSamples, static_cast<unsigned int>(mModelSampleRate));
 
             auto const maxIt = std::max_element(frameStart, frameEnd);
             auto const bestClassIndex = static_cast<size_t>(std::distance(frameStart, maxIt));
