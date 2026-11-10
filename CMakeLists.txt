@@ -45,14 +45,14 @@ set(IVE_BUILD_PLUGIN_LIBRARY ON)
 add_subdirectory(ircam-vamp-extension EXCLUDE_FROM_ALL)
 
 ### Include LibTorch ###
-include(Resources/libtorch.cmake)
+include(resources/libtorch.cmake)
 
 ### Models ###
 execute_process(
   COMMAND ${CMAKE_COMMAND}
     -DOUTPUT_DIR=${CMAKE_CURRENT_BINARY_DIR}
 	-DREFRESH_MODEL=${EFFICIENTAT_VAMP_PLUGIN_REFRESH_MODEL}
-    -P ${CMAKE_CURRENT_SOURCE_DIR}/Resources/download_model.cmake
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/resources/download_model.cmake
 )
 
 ### Version ###
@@ -75,9 +75,9 @@ set(VPP_URL "www.ircam.fr" CACHE PATH "The URL of the project")
 # Generate a new UUID for your plugin (do not reuse IPT's UUID to avoid installer collisions)
 set(VPP_APPID "8f4b2c10-9d3a-4e7b-a12c-3d4e5f6a7b8c" CACHE PATH "The unique ID of the project")
 set(VPP_BUILD_TAG "${EFFICIENTAT_VAMP_PLUGIN_BUILD_TAG}" CACHE STRING "The current tag of the project" FORCE)
-set(VPP_ABOUT_FILE "${CMAKE_CURRENT_SOURCE_DIR}/Resources/About.txt" CACHE PATH "The about file to add to the distribution" FORCE)
-set(VPP_CHANGELOG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/Resources/ChangeLog.txt" CACHE PATH "The changelog file to add to the distribution" FORCE)
-set(VPP_ICON_FILE "${CMAKE_CURRENT_SOURCE_DIR}/Resources/Ircam-logo-noir-RS.png" CACHE PATH "The icon file to add to the distribution" FORCE)
+set(VPP_ABOUT_FILE "${CMAKE_CURRENT_SOURCE_DIR}/resources/About.txt" CACHE PATH "The about file to add to the distribution" FORCE)
+set(VPP_CHANGELOG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/resources/ChangeLog.txt" CACHE PATH "The changelog file to add to the distribution" FORCE)
+set(VPP_ICON_FILE "${CMAKE_CURRENT_SOURCE_DIR}/resources/Ircam-logo-noir-RS.png" CACHE PATH "The icon file to add to the distribution" FORCE)
 set(VPP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/package CACHE PATH "The directory of the package" FORCE)
 include(vamp-plugin-packager/vamp-plugin-packager.cmake)
 
@@ -108,7 +108,7 @@ vpp_add_plugin(eat_vamp_plugin
   VERSION ${PROJECT_VERSION_MAJOR}
   INSTALL ON
   DEBUG ${EFFICIENTAT_VAMP_PLUGIN_ENABLE_DEBUG}
-  DEBUG_DOCUMENT ${CMAKE_CURRENT_SOURCE_DIR}/Resources/test.ptldoc
+  DEBUG_DOCUMENT ${CMAKE_CURRENT_SOURCE_DIR}/resources/test.ptldoc
   TESTER ${EFFICIENTAT_VAMP_PLUGIN_TESTER_ENABLE}
   TESTER_ARGUMENTS -a -t C1
   TESTER_TIMEOUT ${EFFICIENTAT_VAMP_PLUGIN_TESTER_TIMEOUT}
@@ -122,7 +122,7 @@ setup_libtorch(eat_vamp_plugin)
 add_custom_command(TARGET eat_vamp_plugin POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_directory
     "${CMAKE_CURRENT_BINARY_DIR}/models/"
-	"$<TARGET_FILE_DIR:eat_vamp_plugin>/../Resources/models"
+	"$<TARGET_FILE_DIR:eat_vamp_plugin>/../resources/models"
 )
 
 ### Optional: Custom Unit Test Runner ###
