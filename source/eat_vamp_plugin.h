@@ -1,9 +1,9 @@
 #pragma once
 
-#include <vamp-sdk/Plugin.h>
+#include <IvePluginAdapter.hpp>
 #include <torch/script.h>
 #include <torch/torch.h>
-#include <IvePluginAdapter.hpp>
+#include <vamp-sdk/Plugin.h>
 
 #include <array>
 #include <string>
@@ -23,8 +23,8 @@ constexpr float kMinimumEnergyThreshold = -60.0f; // Silence gating in dB
 namespace EfficientAT
 {
     class Plugin
-        : public Vamp::Plugin
-        , public Ive::PluginExtension
+    : public Vamp::Plugin
+    , public Ive::PluginExtension
     {
     public:
         explicit Plugin(float inputSampleRate);
@@ -48,7 +48,7 @@ namespace EfficientAT
         ParameterList getParameterDescriptors() const override;
         void setParameter(std::string paramid, float newval) override;
         float getParameter(std::string paramid) const override;
-		bool loadModel();
+        bool loadModel();
 
         OutputExtraList getOutputExtraDescriptors(size_t outputDescriptorIndex) const override;
 
@@ -93,4 +93,4 @@ namespace EfficientAT
         std::vector<float> mFlatInputs;
         std::vector<size_t> mFlatIndices;
     };
-} // namespace efficientAT
+} // namespace EfficientAT

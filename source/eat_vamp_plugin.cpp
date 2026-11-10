@@ -230,7 +230,7 @@ EfficientAT::Plugin::Plugin(float inputSampleRate)
 , mResampler(inputSampleRate, inputSampleRate)
 , mDevice(getOptimalDevice())
 {
-	loadModel();
+    loadModel();
 }
 
 void EfficientAT::Plugin::reset()
@@ -639,7 +639,7 @@ EfficientAT::Plugin::FeatureSet EfficientAT::Plugin::process(float const* const*
         mBufferWritePosition += std::get<1>(result);
     }
 
-	FeatureSet fs;
+    FeatureSet fs;
     auto const hopSizeSamples = static_cast<size_t>(static_cast<double>(mModelSampleRate) * kSegmentHopSizeMs / 1000.0);
 
     while(mBufferWritePosition - mBufferReadPosition >= mModelSegmentLength)
@@ -691,7 +691,7 @@ EfficientAT::Plugin::FeatureSet EfficientAT::Plugin::process(float const* const*
     mBufferWritePosition = remaining;
     mBufferReadPosition = 0;
 
-	return fs;
+    return fs;
 }
 
 EfficientAT::Plugin::FeatureSet EfficientAT::Plugin::getRemainingFeatures()
@@ -719,7 +719,10 @@ EfficientAT::Plugin::FeatureSet EfficientAT::Plugin::getRemainingFeatures()
             mIntermediary.cbegin(),
             std::next(mIntermediary.cbegin(), static_cast<std::ptrdiff_t>(samplesToCopy)),
             0.0f,
-            [](auto const sum, auto const amp) { return sum + amp * amp; });
+            [](auto const sum, auto const amp)
+            {
+                return sum + amp * amp;
+            });
 
         if(std::sqrt(sumSquares / static_cast<float>(samplesToCopy)) >= linearThreshold)
         {
