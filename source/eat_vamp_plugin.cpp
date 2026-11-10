@@ -482,7 +482,6 @@ float EfficientAT::Plugin::getParameter(std::string paramid) const
     return 0.0f;
 }
 
-#ifdef USE_IVE_EXTENSION
 EfficientAT::Plugin::OutputExtraList EfficientAT::Plugin::getOutputExtraDescriptors(size_t outputDescriptorIndex) const
 {
     if(outputDescriptorIndex != 0)
@@ -518,7 +517,6 @@ EfficientAT::Plugin::OutputExtraList EfficientAT::Plugin::getOutputExtraDescript
     }
     return list;
 }
-#endif
 
 void EfficientAT::Plugin::runModel(FeatureSet& fs)
 {
@@ -770,7 +768,6 @@ extern "C"
         }
     }
 
-#ifdef USE_IVE_EXTENSION
     IVE_EXTERN IvePluginDescriptor const* iveGetPluginDescriptor(unsigned int version, unsigned int index)
     {
         if(version < 1)
@@ -789,7 +786,6 @@ extern "C"
             }
         }
     }
-#endif
 #ifdef __cplusplus
 }
 #endif

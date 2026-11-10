@@ -92,7 +92,6 @@ source_group("sources" FILES ${EFFICIENTAT_VAMP_PLUGIN_SOURCES})
 ### Target ###
 add_library(eat_vamp_plugin MODULE ${EFFICIENTAT_VAMP_PLUGIN_SOURCES})
 ive_prepare_plugin_target(eat_vamp_plugin)
-target_compile_definitions(eat_vamp_plugin PRIVATE USE_IVE_EXTENSION)
 target_include_directories(eat_vamp_plugin PRIVATE "${PLUGIN_SOURCE_DIR}")
 if(UNIX AND NOT APPLE)
 	target_link_libraries(eat_vamp_plugin PRIVATE stdc++fs)
@@ -133,7 +132,6 @@ if(EFFICIENTAT_VAMP_PLUGIN_BUILD_UNIT_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_D
 	${EFFICIENTAT_VAMP_PLUGIN_SOURCES}
   )
   ive_prepare_plugin_target(unit_test_runner)
-  target_compile_definitions(unit_test_runner PRIVATE USE_IVE_EXTENSION)
   target_include_directories(unit_test_runner PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/source)
   setup_libtorch(unit_test_runner)
 endif()

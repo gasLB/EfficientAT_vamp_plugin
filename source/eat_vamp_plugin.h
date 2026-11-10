@@ -3,11 +3,7 @@
 #include <vamp-sdk/Plugin.h>
 #include <torch/script.h>
 #include <torch/torch.h>
-
-#ifdef USE_IVE_EXTENSION
-//#include <IvePluginExtension.hpp>
 #include <IvePluginAdapter.hpp>
-#endif
 
 #include <array>
 #include <string>
@@ -28,9 +24,7 @@ namespace EfficientAT
 {
     class Plugin
         : public Vamp::Plugin
-#ifdef USE_IVE_EXTENSION
         , public Ive::PluginExtension
-#endif
     {
     public:
         explicit Plugin(float inputSampleRate);
@@ -56,9 +50,7 @@ namespace EfficientAT
         float getParameter(std::string paramid) const override;
 		bool loadModel();
 
-#ifdef USE_IVE_EXTENSION
         OutputExtraList getOutputExtraDescriptors(size_t outputDescriptorIndex) const override;
-#endif
 
         FeatureSet process(float const* const* inputBuffers, Vamp::RealTime timestamp) override;
         FeatureSet getRemainingFeatures() override;
