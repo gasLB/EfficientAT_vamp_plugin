@@ -102,8 +102,8 @@ if(EFFICIENTAT_VAMP_PLUGIN_TESTER_ENABLE)
 endif()
 
 vpp_add_plugin(eat_vamp_plugin
-  ${CMAKE_CURRENT_SOURCE_DIR}/source/ircamEfficientAT.cat
-  OUTPUT_NAME ircamEfficientAT
+  OUTPUT_NAME ircamefficientat
+  CATFILE ${CMAKE_CURRENT_SOURCE_DIR}/source/ircamefficientat.cat
   COPYRIGHT "Copyright 2026 Ircam. All rights reserved"
   VERSION ${PROJECT_VERSION_MAJOR}
   INSTALL ON
