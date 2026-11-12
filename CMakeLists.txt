@@ -137,7 +137,8 @@ if(EFFICIENTAT_VAMP_PLUGIN_BUILD_UNIT_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_D
 endif()
 
 ### Publishing ###
-set(PROJECT_URL "https://github.com/Ircam-Partiels/efficientat-vamp-plugin")
+set(PROJECT_URL "https://github.com/gasLB/EfficientAT_vamp_plugin")
+
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/efficientat-release.md "## Downloads\n")
 file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/efficientat-release.md "- [EfficientAT-Linux.zip](${PROJECT_URL}/releases/download/${EFFICIENTAT_VAMP_PLUGIN_BUILD_TAG}/EfficientAT-Linux.zip)\n")
 file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/efficientat-release.md "- [EfficientAT-MacOS.pkg](${PROJECT_URL}/releases/download/${EFFICIENTAT_VAMP_PLUGIN_BUILD_TAG}/EfficientAT-MacOS.pkg)\n")
