@@ -5,3 +5,4 @@ package
 *.tar
 *.pdf
 *.DS_Store
+.venv/
