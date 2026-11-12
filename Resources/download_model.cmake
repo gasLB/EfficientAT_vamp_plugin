@@ -1,16 +1,17 @@
-# Replace with your actual URL
-set(RELEASE_URL "https://github.com/Ircam-Partiels/efficientat-vamp-plugin/releases/download/models")
+if(NOT DEFINED OUTPUT_DIR)
+  message(FATAL_ERROR "OUTPUT_DIR must be defined")
+endif()
+
+set(MODELS_DIR "${OUTPUT_DIR}/models")
+file(MAKE_DIRECTORY "${MODELS_DIR}")
+
+set(RELEASE_URL "https://github.com/gasLB/EfficientAT_vamp_plugin/releases/tag/models")
 
 set(MODEL_FILES
   "01_mn04_as.ts"
   "02_mn10_as.ts"
   "03_mn20_as.ts"
 )
-
-set(AUTH_HEADER "")
-if(DEFINED ENV{GITHUB_TOKEN})
-  set(AUTH_HEADER HTTPHEADER "Authorization: Bearer $ENV{GITHUB_TOKEN}")
-endif()
 
 foreach(MODEL_FILE IN LISTS MODEL_FILES)
   set(DEST_FILE "${MODELS_DIR}/${MODEL_FILE}")
