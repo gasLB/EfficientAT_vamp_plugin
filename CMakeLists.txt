@@ -16,7 +16,7 @@ if(EFFICIENTAT_VAMP_PLUGIN_USE_SCCACHE)
 		if(EFFICIENTAT_VAMP_PLUGIN_SCCACHE_PROGRAM)
 			set(CMAKE_C_COMPILER_LAUNCHER "${EFFICIENTAT_VAMP_PLUGIN_SCCACHE_PROGRAM}" CACHE STRING "C compiler launcher" FORCE)
 			set(CMAKE_CXX_COMPILER_LAUNCHER "${EFFICIENTAT_VAMP_PLUGIN_SCCACHE_PROGRAM}" CACHE STRING "C++ compiler launcher" FORCE)
-			set(EFFICIENTAT_VAMP_PLUGIN_SCCACHE_LAUNCHER_MANAGED ON CACHE INTERNAL "Whether the Classifier Vamp Plugin enabled the compiler launcher with sccache")
+			set(EFFICIENTAT_VAMP_PLUGIN_SCCACHE_LAUNCHER_MANAGED ON CACHE INTERNAL "Whether the EfficientAT Vamp Plugin enabled the compiler launcher with sccache")
       message(VERBOSE "sccache found, compiler launcher enabled")
     else()
       message(VERBOSE "sccache not found, continuing without compiler cache")
@@ -37,7 +37,7 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" CACHE STR
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE CACHE BOOL "Default value for POSITION_INDEPENDENT_CODE of targets" FORCE)
 
 ### Project ###
-project(ClassifierVampPlugin VERSION 1.0.0 LANGUAGES C CXX)
+project(EfficientATVampPlugin VERSION 1.0.0 LANGUAGES C CXX)
 
 ### Include Vamp (IVE) ###
 set(IVE_BUILD_HOST_LIBRARY OFF)
@@ -65,11 +65,11 @@ endif()
 if(NOT EFFICIENTAT_VAMP_PLUGIN_BUILD_TAG OR EFFICIENTAT_VAMP_PLUGIN_BUILD_TAG STREQUAL "")
 	set(EFFICIENTAT_VAMP_PLUGIN_BUILD_TAG ${CMAKE_PROJECT_VERSION})
 endif()
-message(STATUS "Classifier Vamp Plugin: " ${EFFICIENTAT_VAMP_PLUGIN_BUILD_TAG} " (" ${GIT_COMMIT_ID} ")")
+message(STATUS "EfficientAT Vamp Plugin: " ${EFFICIENTAT_VAMP_PLUGIN_BUILD_TAG} " (" ${GIT_COMMIT_ID} ")")
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/version.txt ${EFFICIENTAT_VAMP_PLUGIN_BUILD_TAG})
 
 ### Package ###
-set(VPP_NAME "Classifier" CACHE PATH "The name of the project" FORCE)
+set(VPP_NAME "EfficientAT" CACHE PATH "The name of the project" FORCE)
 set(VPP_COMPANY "Ircam" CACHE PATH "The name of the company" FORCE)
 set(VPP_URL "www.ircam.fr" CACHE PATH "The URL of the project")
 # Generate a new UUID for your plugin (do not reuse IPT's UUID to avoid installer collisions)
@@ -139,6 +139,6 @@ endif()
 ### Publishing ###
 set(PROJECT_URL "https://github.com/Ircam-Partiels/efficientat-vamp-plugin")
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/efficientat-release.md "## Downloads\n")
-file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/efficientat-release.md "- [Classifier-Linux.zip](${PROJECT_URL}/releases/download/${EFFICIENTAT_VAMP_PLUGIN_BUILD_TAG}/Classifier-Linux.zip)\n")
-file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/efficientat-release.md "- [Classifier-MacOS.pkg](${PROJECT_URL}/releases/download/${EFFICIENTAT_VAMP_PLUGIN_BUILD_TAG}/Classifier-MacOS.pkg)\n")
-file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/efficientat-release.md "- [Classifier-Windows.exe](${PROJECT_URL}/releases/download/${EFFICIENTAT_VAMP_PLUGIN_BUILD_TAG}/Classifier-Windows.exe)\n")
+file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/efficientat-release.md "- [EfficientAT-Linux.zip](${PROJECT_URL}/releases/download/${EFFICIENTAT_VAMP_PLUGIN_BUILD_TAG}/EfficientAT-Linux.zip)\n")
+file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/efficientat-release.md "- [EfficientAT-MacOS.pkg](${PROJECT_URL}/releases/download/${EFFICIENTAT_VAMP_PLUGIN_BUILD_TAG}/EfficientAT-MacOS.pkg)\n")
+file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/efficientat-release.md "- [EfficientAT-Windows.exe](${PROJECT_URL}/releases/download/${EFFICIENTAT_VAMP_PLUGIN_BUILD_TAG}/EfficientAT-Windows.exe)\n")
