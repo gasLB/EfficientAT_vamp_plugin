@@ -74,6 +74,8 @@ jobs:
     - name: Sccache
       uses: mozilla-actions/sccache-action@v0.0.11
     - name: Configure
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: cmake -B ${{ github.workspace }}/build -G Ninja -DCMAKE_BUILD_TYPE=${{ env.build_type }} -DCMAKE_C_COMPILER="/usr/bin/clang" -DCMAKE_CXX_COMPILER="/usr/bin/clang++" -DEFFICIENTAT_VAMP_PLUGIN_BUILD_TAG=${{ env.tag_name }} -DEFFICIENTAT_VAMP_PLUGIN_ENABLE_DEBUG=OFF -DEFFICIENTAT_VAMP_PLUGIN_USE_SCCACHE=ON
     - name: Build
       run: cmake --build ${{ github.workspace }}/build
