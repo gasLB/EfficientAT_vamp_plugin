@@ -120,9 +120,11 @@ vpp_create_clang_format_targets(eat_vamp_plugin "${EFFICIENTAT_VAMP_PLUGIN_SOURC
 setup_libtorch(eat_vamp_plugin)
 
 add_custom_command(TARGET eat_vamp_plugin POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E make_directory
+    "$<TARGET_FILE_DIR:eat_vamp_plugin>/../Resources/models"
   COMMAND ${CMAKE_COMMAND} -E copy_directory
     "${CMAKE_CURRENT_BINARY_DIR}/models/"
-	"$<TARGET_FILE_DIR:eat_vamp_plugin>/../Resources/models"
+    "$<TARGET_FILE_DIR:eat_vamp_plugin>/../Resources/models"
 )
 
 ### Optional: Custom Unit Test Runner ###

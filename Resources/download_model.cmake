@@ -5,7 +5,7 @@ endif()
 set(MODELS_DIR "${OUTPUT_DIR}/models")
 file(MAKE_DIRECTORY "${MODELS_DIR}")
 
-set(RELEASE_URL "https://github.com/gasLB/EfficientAT_vamp_plugin/releases/tag/models")
+set(RELEASE_URL "https://github.com/gasLB/EfficientAT_vamp_plugin/releases/download/models")
 
 set(MODEL_FILES
   "01_mn04_as.ts"
