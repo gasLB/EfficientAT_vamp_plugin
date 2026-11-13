@@ -196,29 +196,31 @@ jobs:
         path: ./build/libtorch
         key: ${{ runner.os }}-libtorch-${{ hashFiles('Resources/libtorch.cmake') }}
         enableCrossOsArchive: true
-    - name: Prepare
-      run: |
-        security create-keychain -p ${{ secrets.DEV_ID_PASSWORD }} buildagent
-        security unlock-keychain -p ${{ secrets.DEV_ID_PASSWORD }} buildagent
-        security list-keychains -s buildagent && security default-keychain -s buildagent
-        echo ${{ secrets.DEV_ID_APP_CERT }} | base64 --decode > ./cert.p12
-        security import ./cert.p12 -P ${{ secrets.DEV_ID_PASSWORD }} -A -t cert -f pkcs12 -k buildagent -T /usr/bin/codesign >/dev/null
-        rm ./cert.p12
-        echo ${{ secrets.DEV_ID_INST_CERT }} | base64 --decode > ./cert.p12
-        security import ./cert.p12 -P ${{ secrets.DEV_ID_PASSWORD }} -A -t cert -f pkcs12 -k buildagent -T /usr/bin/codesign >/dev/null
-        rm ./cert.p12
-        security set-key-partition-list -S "apple-tool:,apple:,codesign:" -s -k ${{ secrets.DEV_ID_PASSWORD }} buildagent >/dev/null
-        xcrun notarytool store-credentials "notary-installer" --apple-id ${{ secrets.DEV_USER_APPLE_ID }} --team-id ${{ secrets.DEV_TEAM_APPLE_ID }} --password ${{ secrets.DEV_SPEC_APP_PASSWORD }} >/dev/null
+    # - name: Prepare
+    #   run: |
+    #     security create-keychain -p ${{ secrets.DEV_ID_PASSWORD }} buildagent
+    #     security unlock-keychain -p ${{ secrets.DEV_ID_PASSWORD }} buildagent
+    #     security list-keychains -s buildagent && security default-keychain -s buildagent
+    #     echo ${{ secrets.DEV_ID_APP_CERT }} | base64 --decode > ./cert.p12
+    #     security import ./cert.p12 -P ${{ secrets.DEV_ID_PASSWORD }} -A -t cert -f pkcs12 -k buildagent -T /usr/bin/codesign >/dev/null
+    #     rm ./cert.p12
+    #     echo ${{ secrets.DEV_ID_INST_CERT }} | base64 --decode > ./cert.p12
+    #     security import ./cert.p12 -P ${{ secrets.DEV_ID_PASSWORD }} -A -t cert -f pkcs12 -k buildagent -T /usr/bin/codesign >/dev/null
+    #     rm ./cert.p12
+    #     security set-key-partition-list -S "apple-tool:,apple:,codesign:" -s -k ${{ secrets.DEV_ID_PASSWORD }} buildagent >/dev/null
+    #     xcrun notarytool store-credentials "notary-installer" --apple-id ${{ secrets.DEV_USER_APPLE_ID }} --team-id ${{ secrets.DEV_TEAM_APPLE_ID }} --password ${{ secrets.DEV_SPEC_APP_PASSWORD }} >/dev/null
     - uses: seanmiddleditch/gha-setup-ninja@master
     - name: Sccache
       uses: mozilla-actions/sccache-action@v0.0.11
     - name: Configure
-      run: cmake -B ${{ github.workspace }}/build -G Ninja -DVPP_CODESIGN_APPLE_KEYCHAIN_PROFILE_INSTALLER="notary-installer" -DVPP_NOTARIZE=ON -DCMAKE_BUILD_TYPE=${{ env.build_type }} -DEFFICIENTAT_VAMP_PLUGIN_BUILD_TAG=${{ env.tag_name }} -DEFFICIENTAT_VAMP_PLUGIN_ENABLE_DEBUG=OFF -DEFFICIENTAT_VAMP_PLUGIN_USE_SCCACHE=ON
+      # run: cmake -B ${{ github.workspace }}/build -G Ninja -DVPP_CODESIGN_APPLE_KEYCHAIN_PROFILE_INSTALLER="notary-installer" -DVPP_NOTARIZE=ON -DCMAKE_BUILD_TYPE=${{ env.build_type }} -DEFFICIENTAT_VAMP_PLUGIN_BUILD_TAG=${{ env.tag_name }} -DEFFICIENTAT_VAMP_PLUGIN_ENABLE_DEBUG=OFF -DEFFICIENTAT_VAMP_PLUGIN_USE_SCCACHE=ON
+      run: cmake -B ${{ github.workspace }}/build -G Ninja -DVPP_NOTARIZE=OFF -DCMAKE_BUILD_TYPE=${{ env.build_type }} -DEFFICIENTAT_VAMP_PLUGIN_BUILD_TAG=${{ env.tag_name }} -DEFFICIENTAT_VAMP_PLUGIN_ENABLE_DEBUG=OFF -DEFFICIENTAT_VAMP_PLUGIN_USE_SCCACHE=ON
     - name: Build
-      run: |
-        security unlock-keychain -p ${{ secrets.DEV_ID_PASSWORD }} buildagent
-        security set-keychain-settings -lut 7200 buildagent
-        cmake --build ${{ github.workspace }}/build
+      run: cmake --build ${{ github.workspace }}/build
+      # run: |
+      #   security unlock-keychain -p ${{ secrets.DEV_ID_PASSWORD }} buildagent
+      #   security set-keychain-settings -lut 7200 buildagent
+      #   cmake --build ${{ github.workspace }}/build
     - name: Test
       run: ctest -C ${{ env.build_type }} -VV --test-dir ${{ github.workspace }}/build
     - name: Package

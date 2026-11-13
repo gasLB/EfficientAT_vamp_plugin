@@ -127,6 +127,11 @@ add_custom_command(TARGET eat_vamp_plugin POST_BUILD
     "$<TARGET_FILE_DIR:eat_vamp_plugin>/../Resources/models"
 )
 
+### skip std::min and std::max on Windows
+if(MSVC)
+    target_compile_definitions(eat_vamp_plugin PRIVATE NOMINMAX)
+endif()
+
 ### Optional: Custom Unit Test Runner ###
 if(EFFICIENTAT_VAMP_PLUGIN_BUILD_UNIT_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/source/unit_test_runner.cpp")
   add_executable(unit_test_runner
