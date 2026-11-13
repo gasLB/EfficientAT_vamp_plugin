@@ -40,7 +40,7 @@ jobs:
   #    uses: actions/cache@v6
   #    with:
   #      path: ./build/models
-  #      key: models-${{ hashFiles('Resources/download_model.cmake', 'build/ipt_release_assets.json') }}
+  #      key: models-${{ hashFiles('Resources/download_model.cmake', 'build/efficientat_release_assets.json') }}
   #      enableCrossOsArchive: true
   #  - name: Download
   #    env:
@@ -62,7 +62,7 @@ jobs:
   #    uses: actions/cache@v6
   #    with:
   #      path: ./build/models
-  #      key: models-${{ hashFiles('Resources/download_model.cmake', 'build/ipt_release_assets.json') }}
+  #      key: models-${{ hashFiles('Resources/download_model.cmake', 'build/efficientat_release_assets.json') }}
   #      enableCrossOsArchive: true
     - name: Cache
       uses: actions/cache@v6
@@ -105,3 +105,143 @@ jobs:
         files: |
           ${{ github.workspace }}/package/EfficientAT-Linux.zip
           ${{ github.workspace }}/EfficientAT-Vamp-Linux.zip
+# Compiles, tests and packages the plugin for Windows.
+  Windows:
+    runs-on: windows-latest
+    # needs: Cache
+    steps:
+    - run: git config --global core.longpaths true
+    - uses: actions/checkout@v7
+      with:
+        submodules: recursive
+    # - name: Fetch model release metadata
+    #   env:
+    #     GITHUB_TOKEN: ${{ github.token }}
+    #   run: cmake -DOUTPUT_DIR=${{ github.workspace }}/build -DGENERATE_ASSETS_ONLY=ON -P Resources/download_model.cmake
+    # - name: Cache
+    #   uses: actions/cache@v6
+    #   with:
+    #     path: ./build/models
+    #     key: models-${{ hashFiles('Resources/download_model.cmake', 'build/efficientat_release_assets.json') }}
+    #     enableCrossOsArchive: true
+    - name: Cache
+      uses: actions/cache@v6
+      with:
+        path: |
+          ./build/libtorch
+          ./build/mkl
+          ./build/intel-openmp
+          ./build/uv
+        key: ${{ runner.os }}-libtorch-${{ hashFiles('Resources/libtorch.cmake') }}
+        enableCrossOsArchive: true
+    - name: Developer Command Prompt
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x64
+    - uses: seanmiddleditch/gha-setup-ninja@master
+    - name: Sccache
+      uses: mozilla-actions/sccache-action@v0.0.11
+    - name: Configure
+      run: cmake -B ${{ github.workspace }}/build -G Ninja -DCMAKE_BUILD_TYPE=${{ env.build_type }} -DEFFICIENTAT_VAMP_PLUGIN_BUILD_TAG="${{ env.tag_name }}" -DEFFICIENTAT_VAMP_PLUGIN_ENABLE_DEBUG=OFF -DEFFICIENTAT_VAMP_PLUGIN_USE_SCCACHE=ON
+    - name: Build
+      run: cmake --build ${{ github.workspace }}/build
+    - name: Test
+      run: ctest -C ${{ env.build_type }} -VV --test-dir ${{ github.workspace }}/build
+    - name: Package
+      run: cmake -E chdir ${{ github.workspace }}/build/${{ env.build_type }} cmake -E tar cf ${{ github.workspace }}/EfficientAT-Vamp-Windows.zip --format=zip ircamefficientat.vamp
+    - name: Artifact
+      uses: actions/upload-artifact@v7.0.2
+      with:
+        name: EfficientAT-Vamp-Windows
+        path: ${{ github.workspace }}/EfficientAT-Vamp-Windows.zip
+    - name: Artifact
+      uses: actions/upload-artifact@v7.0.2
+      with:
+        name: EfficientAT-Windows
+        path: ${{ github.workspace }}/package/EfficientAT-Windows.exe
+    - name: Release
+      uses: softprops/action-gh-release@v3
+      if: ${{ env.is_tagged == 'true' }}
+      with:
+        draft: true
+        prerelease: true
+        fail_on_unmatched_files: true
+        generate_release_notes: true
+        body_path: ${{ github.workspace }}/build/efficientat-release.md
+        files: |
+          ${{ github.workspace }}/package/EfficientAT-Windows.exe
+          ${{ github.workspace }}/EfficientAT-Vamp-Windows.zip
+  # Compiles, tests and packages the plugin for MacOS.
+  MacOS:
+    runs-on: macos-latest
+    # needs: Cache
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v7
+      with:
+        submodules: recursive
+    # - name: Fetch model release metadata
+    #   env:
+    #     GITHUB_TOKEN: ${{ github.token }}
+    #   run: cmake -DOUTPUT_DIR=${{ github.workspace }}/build -DGENERATE_ASSETS_ONLY=ON -P Resources/download_model.cmake
+    # - name: Cache
+    #   uses: actions/cache@v6
+    #   with:
+    #     path: ./build/models
+    #     key: models-${{ hashFiles('Resources/download_model.cmake', 'build/efficientat_release_assets.json') }}
+    #     enableCrossOsArchive: true
+    - name: Cache
+      uses: actions/cache@v6
+      with:
+        path: ./build/libtorch
+        key: ${{ runner.os }}-libtorch-${{ hashFiles('Resources/libtorch.cmake') }}
+        enableCrossOsArchive: true
+    - name: Prepare
+      run: |
+        security create-keychain -p ${{ secrets.DEV_ID_PASSWORD }} buildagent
+        security unlock-keychain -p ${{ secrets.DEV_ID_PASSWORD }} buildagent
+        security list-keychains -s buildagent && security default-keychain -s buildagent
+        echo ${{ secrets.DEV_ID_APP_CERT }} | base64 --decode > ./cert.p12
+        security import ./cert.p12 -P ${{ secrets.DEV_ID_PASSWORD }} -A -t cert -f pkcs12 -k buildagent -T /usr/bin/codesign >/dev/null
+        rm ./cert.p12
+        echo ${{ secrets.DEV_ID_INST_CERT }} | base64 --decode > ./cert.p12
+        security import ./cert.p12 -P ${{ secrets.DEV_ID_PASSWORD }} -A -t cert -f pkcs12 -k buildagent -T /usr/bin/codesign >/dev/null
+        rm ./cert.p12
+        security set-key-partition-list -S "apple-tool:,apple:,codesign:" -s -k ${{ secrets.DEV_ID_PASSWORD }} buildagent >/dev/null
+        xcrun notarytool store-credentials "notary-installer" --apple-id ${{ secrets.DEV_USER_APPLE_ID }} --team-id ${{ secrets.DEV_TEAM_APPLE_ID }} --password ${{ secrets.DEV_SPEC_APP_PASSWORD }} >/dev/null
+    - uses: seanmiddleditch/gha-setup-ninja@master
+    - name: Sccache
+      uses: mozilla-actions/sccache-action@v0.0.11
+    - name: Configure
+      run: cmake -B ${{ github.workspace }}/build -G Ninja -DVPP_CODESIGN_APPLE_KEYCHAIN_PROFILE_INSTALLER="notary-installer" -DVPP_NOTARIZE=ON -DCMAKE_BUILD_TYPE=${{ env.build_type }} -DEFFICIENTAT_VAMP_PLUGIN_BUILD_TAG=${{ env.tag_name }} -DEFFICIENTAT_VAMP_PLUGIN_ENABLE_DEBUG=OFF -DEFFICIENTAT_VAMP_PLUGIN_USE_SCCACHE=ON
+    - name: Build
+      run: |
+        security unlock-keychain -p ${{ secrets.DEV_ID_PASSWORD }} buildagent
+        security set-keychain-settings -lut 7200 buildagent
+        cmake --build ${{ github.workspace }}/build
+    - name: Test
+      run: ctest -C ${{ env.build_type }} -VV --test-dir ${{ github.workspace }}/build
+    - name: Package
+      run: cmake -E chdir ${{ github.workspace }}/build/${{ env.build_type }} cmake -E tar cf ${{ github.workspace }}/EfficientAT-Vamp-MacOS.zip --format=zip ircamefficientat.vamp
+    - name: Artifact
+      uses: actions/upload-artifact@v7.0.2
+      with:
+        name: EfficientAT-Vamp-MacOS
+        path: ${{ github.workspace }}/EfficientAT-Vamp-MacOS.zip
+    - name: Artifact
+      uses: actions/upload-artifact@v7.0.2
+      with:
+        name: EfficientAT-MacOS
+        path: ${{ github.workspace }}/package/EfficientAT-MacOS.pkg
+    - name: Release
+      uses: softprops/action-gh-release@v3
+      if: ${{ env.is_tagged == 'true' }}
+      with:
+        draft: true
+        prerelease: true
+        fail_on_unmatched_files: true
+        generate_release_notes: true
+        body_path: ${{ github.workspace }}/build/efficientat-release.md
+        files: |
+          ${{ github.workspace }}/package/EfficientAT-MacOS.pkg
+          ${{ github.workspace }}/EfficientAT-Vamp-MacOS.zip
