@@ -1,0 +1,1 @@
+VAMP plugin using local ML model to act as a first-pass audio classifier in Partiels
