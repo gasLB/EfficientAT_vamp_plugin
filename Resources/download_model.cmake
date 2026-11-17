@@ -15,6 +15,9 @@ set(MODEL_FILES
 
 foreach(MODEL_FILE IN LISTS MODEL_FILES)
   set(DEST_FILE "${MODELS_DIR}/${MODEL_FILE}")
+  if(REFRESH_MODEL AND EXISTS "${DEST_FILE}")
+    file(REMOVE "${DEST_FILE}")
+  endif()
   if(NOT EXISTS "${DEST_FILE}")
     message(STATUS "Downloading ${MODEL_FILE}...")
     file(DOWNLOAD
@@ -22,7 +25,6 @@ foreach(MODEL_FILE IN LISTS MODEL_FILES)
       "${DEST_FILE}"
       SHOW_PROGRESS
       TLS_VERIFY ON
-      ${AUTH_HEADER}
       STATUS DOWNLOAD_STATUS
     )
     list(GET DOWNLOAD_STATUS 0 STATUS_CODE)

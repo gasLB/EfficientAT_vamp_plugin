@@ -6,6 +6,8 @@
 #include <vamp-sdk/Plugin.h>
 
 #include <array>
+#include <limits>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -48,7 +50,6 @@ namespace EfficientAT
         ParameterList getParameterDescriptors() const override;
         void setParameter(std::string paramid, float newval) override;
         float getParameter(std::string paramid) const override;
-        bool loadModel();
 
         OutputExtraList getOutputExtraDescriptors(size_t outputDescriptorIndex) const override;
 
@@ -56,7 +57,10 @@ namespace EfficientAT
         FeatureSet getRemainingFeatures() override;
 
     private:
+        bool loadModel();
         void runModel(FeatureSet& set);
+        void flushPendingMarker(FeatureSet& set);
+        void pushInput(float const* inputBuffer, size_t numSamples);
 
         class Resampler
         {
@@ -64,15 +68,24 @@ namespace EfficientAT
             Resampler(double sourceSampleRate, double targetSampleRate);
             std::tuple<size_t, size_t> process(size_t numInputSamples, float const* inputBuffer, size_t numOutputSamples, float* outputBuffer);
             void reset();
-            void setTargetSampleRate(double sampleRate) noexcept;
+            void setTargetSampleRate(double sampleRate);
             double getRatio() const noexcept;
+            double getLatency() const noexcept;
 
         private:
+            void updateFilter();
+            float filterSample(float sample) noexcept;
+
             double mSourceSampleRate;
             double mTargetSampleRate;
             double mSubSamplePos = 1.0;
             size_t mIndexBuffer = 0;
             std::array<float, 5> mLastInputSamples{};
+
+            // Anti-aliasing low-pass FIR filter (only used when downsampling)
+            std::vector<float> mFilterCoefficients;
+            std::vector<float> mFilterDelayLine;
+            size_t mFilterPosition = 0;
         };
 
         Resampler mResampler;
@@ -81,11 +94,21 @@ namespace EfficientAT
 
         size_t mBlockSize = 0;
         size_t mModelIndex = 0;
+        std::optional<size_t> mLoadedModelIndex;
         double mModelSampleRate = 32000.0;
         size_t mModelSegmentLength = 0;
+        size_t mHopSize = 0;
+        size_t mPaddingSize = 0;
+        bool mIsResampling = false;
+        size_t mResamplerLatency = 0;
         size_t mBufferWritePosition = 0;
         size_t mBufferReadPosition = 0;
         size_t mNumFrameProcessed = 0;
+        size_t mAudioEnd = std::numeric_limits<size_t>::max(); // In model samples, known in getRemainingFeatures()
+
+        std::optional<Feature> mPendingMarker;
+        size_t mPendingMarkerFirstFrame = 0;
+        size_t mPendingMarkerLastFrame = 0;
 
         std::vector<std::string> mModelClassNames;
         std::vector<float> mBuffer;

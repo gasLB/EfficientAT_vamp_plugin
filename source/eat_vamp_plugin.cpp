@@ -4,6 +4,7 @@
 #include <cmath>
 #include <filesystem>
 #include <iostream>
+#include <numbers>
 #include <numeric>
 #include <regex>
 #include <vamp-sdk/PluginAdapter.h>
@@ -20,12 +21,13 @@
 #define forcedinline inline __attribute__((always_inline))
 #endif
 
+// Errors are always reported so users can see why the plugin failed to
+// initialise, debug messages are only printed in debug builds.
+#define EfficientATErr(message) std::cerr << "[EfficientAT] " << message << "\n"
 #ifndef NDEBUG
-#define EfficientATDbg(message) std::cout << "[Class] " << message << "\n"
-#define EfficientATErr(message) std::cerr << "[Class] " << message << "\n"
+#define EfficientATDbg(message) std::cout << "[EfficientAT] " << message << "\n"
 #else
 #define EfficientATDbg(message)
-#define EfficientATErr(message)
 #endif
 
 namespace EfficientAT
@@ -166,11 +168,64 @@ EfficientAT::Plugin::Resampler::Resampler(double sourceSampleRate, double target
     reset();
 }
 
+void EfficientAT::Plugin::Resampler::updateFilter()
+{
+    mFilterCoefficients.clear();
+    mFilterDelayLine.clear();
+    mFilterPosition = 0;
+    if(mTargetSampleRate <= 0.0 || mSourceSampleRate <= mTargetSampleRate)
+    {
+        return;
+    }
+
+    // Windowed-sinc (Blackman) low-pass FIR applied before the polynomial
+    // interpolation when downsampling. The cutoff is the target Nyquist
+    // frequency and the transition band is 1/16 of the target sample rate
+    // (e.g. 15-17 kHz for a 32 kHz target), so everything that would fold
+    // back below 15 kHz is attenuated by ~75 dB. The filter introduces a
+    // delay of (numTaps - 1) / 2 source samples (~1.4 ms at 48 kHz), which is
+    // negligible compared to the analysis hop size.
+    auto const cutoff = 0.5 * mTargetSampleRate / mSourceSampleRate;
+    auto const transition = 0.0625 * mTargetSampleRate / mSourceSampleRate;
+    auto const numTaps = static_cast<size_t>(std::ceil(5.5 / transition)) | static_cast<size_t>(1);
+    auto const center = static_cast<double>(numTaps - 1) / 2.0;
+
+    std::vector<double> coefficients(numTaps);
+    for(size_t n = 0; n < numTaps; ++n)
+    {
+        auto const x = static_cast<double>(n) - center;
+        auto const sinc = x == 0.0 ? 2.0 * cutoff : std::sin(2.0 * std::numbers::pi * cutoff * x) / (std::numbers::pi * x);
+        auto const phase = 2.0 * std::numbers::pi * static_cast<double>(n) / static_cast<double>(numTaps - 1);
+        auto const window = 0.42 - 0.5 * std::cos(phase) + 0.08 * std::cos(2.0 * phase);
+        coefficients[n] = sinc * window;
+    }
+    auto const sum = std::accumulate(coefficients.cbegin(), coefficients.cend(), 0.0);
+    mFilterCoefficients.resize(numTaps);
+    std::transform(coefficients.cbegin(), coefficients.cend(), mFilterCoefficients.begin(), [&](auto const value)
+                   {
+                       return static_cast<float>(value / sum);
+                   });
+    // The delay line is duplicated so the most recent numTaps samples are
+    // always contiguous in memory.
+    mFilterDelayLine.assign(numTaps * 2, 0.0f);
+}
+
+float EfficientAT::Plugin::Resampler::filterSample(float sample) noexcept
+{
+    auto const numTaps = mFilterCoefficients.size();
+    if(numTaps == 0)
+    {
+        return sample;
+    }
+    mFilterPosition = mFilterPosition == 0 ? numTaps - 1 : mFilterPosition - 1;
+    mFilterDelayLine[mFilterPosition] = sample;
+    mFilterDelayLine[mFilterPosition + numTaps] = sample;
+    auto const historyStart = std::next(mFilterDelayLine.cbegin(), static_cast<std::ptrdiff_t>(mFilterPosition));
+    return std::inner_product(mFilterCoefficients.cbegin(), mFilterCoefficients.cend(), historyStart, 0.0f);
+}
+
 std::tuple<size_t, size_t> EfficientAT::Plugin::Resampler::process(size_t numInputSamples, float const* inputBuffer, size_t numOutputSamples, float* outputBuffer)
 {
-    // NOTE: Polynomial interpolation lacks a low-pass anti-aliasing filter.
-    // If input sample rate > target sample rate (e.g., 44.1kHz -> 32kHz),
-    // high frequencies may alias and degrade model classification accuracy.
     double const speedRatio = getRatio();
     size_t numGeneratedSamples = 0;
     size_t numUsedSamples = 0;
@@ -179,7 +234,7 @@ std::tuple<size_t, size_t> EfficientAT::Plugin::Resampler::process(size_t numInp
     {
         while(subSamplePos >= 1.0 && numUsedSamples < numInputSamples)
         {
-            mLastInputSamples[mIndexBuffer] = inputBuffer[numUsedSamples++];
+            mLastInputSamples[mIndexBuffer] = filterSample(inputBuffer[numUsedSamples++]);
             if(++mIndexBuffer == mLastInputSamples.size())
             {
                 mIndexBuffer = 0;
@@ -197,7 +252,7 @@ std::tuple<size_t, size_t> EfficientAT::Plugin::Resampler::process(size_t numInp
     }
     while(subSamplePos >= 1.0 && numUsedSamples < numInputSamples)
     {
-        mLastInputSamples[mIndexBuffer] = inputBuffer[numUsedSamples++];
+        mLastInputSamples[mIndexBuffer] = filterSample(inputBuffer[numUsedSamples++]);
         if(++mIndexBuffer == mLastInputSamples.size())
         {
             mIndexBuffer = 0;
@@ -212,17 +267,29 @@ void EfficientAT::Plugin::Resampler::reset()
 {
     mIndexBuffer = 0;
     mSubSamplePos = 1.0;
+    mFilterPosition = 0;
     std::fill(mLastInputSamples.begin(), mLastInputSamples.end(), 0.0f);
+    std::fill(mFilterDelayLine.begin(), mFilterDelayLine.end(), 0.0f);
 }
 
-void EfficientAT::Plugin::Resampler::setTargetSampleRate(double sampleRate) noexcept
+void EfficientAT::Plugin::Resampler::setTargetSampleRate(double sampleRate)
 {
     mTargetSampleRate = sampleRate;
+    updateFilter();
+    reset();
 }
 
 double EfficientAT::Plugin::Resampler::getRatio() const noexcept
 {
     return mSourceSampleRate / mTargetSampleRate;
+}
+
+double EfficientAT::Plugin::Resampler::getLatency() const noexcept
+{
+    // The latency in source samples: the group delay of the linear phase FIR
+    // filter plus the 2 samples of the 5-point Lagrange interpolation.
+    auto const filterLatency = mFilterCoefficients.empty() ? 0.0 : static_cast<double>(mFilterCoefficients.size() - 1) / 2.0;
+    return filterLatency + 2.0;
 }
 
 EfficientAT::Plugin::Plugin(float inputSampleRate)
@@ -237,20 +304,32 @@ void EfficientAT::Plugin::reset()
 {
     mFlatInputs.clear();
     mFlatIndices.clear();
+    mPendingMarker.reset();
     mResampler.reset();
-    mBufferWritePosition = 0;
-    mBufferReadPosition = 0;
-    mNumFrameProcessed = 0;
     std::fill(mBuffer.begin(), mBuffer.end(), 0.0f);
     std::fill(mIntermediary.begin(), mIntermediary.end(), 0.0f);
+    // The analysis windows are centered on the hops: the buffer starts with
+    // zeros so the first window covers [-padding, segment - padding[ and its
+    // central hop [0, hop[.
+    // The resampler latency is compensated by starting the buffer earlier.
+    mBufferWritePosition = std::min(mPaddingSize - std::min(mResamplerLatency, mPaddingSize), mBuffer.size());
+    mBufferReadPosition = 0;
+    mNumFrameProcessed = 0;
+    mAudioEnd = std::numeric_limits<size_t>::max();
 }
 
 bool EfficientAT::Plugin::loadModel()
 {
+    if(mLoadedModelIndex.has_value() && *mLoadedModelIndex == mModelIndex)
+    {
+        return true;
+    }
+    mLoadedModelIndex.reset();
+
     auto const models = getModelPaths();
     if(mModelIndex >= models.size() || models.at(mModelIndex).empty())
     {
-        EfficientATErr("Failed to retrieve the model!");
+        EfficientATErr("Failed to retrieve the model at index " << mModelIndex << " (" << models.size() << " models found)");
         return false;
     }
 
@@ -272,10 +351,17 @@ bool EfficientAT::Plugin::loadModel()
     }
     catch(const std::exception& e)
     {
-        EfficientATErr("Exception loading model: " << e.what());
+        EfficientATErr("Failed to load the model " << models.at(mModelIndex).string() << ": " << e.what());
         return false;
     }
-    return (mModelSampleRate > 0.0 && mModelSegmentLength > 0 && !mModelClassNames.empty());
+
+    if(mModelSampleRate <= 0.0 || mModelSegmentLength == 0 || mModelClassNames.empty())
+    {
+        EfficientATErr("The model " << models.at(mModelIndex).string() << " returned invalid metadata");
+        return false;
+    }
+    mLoadedModelIndex = mModelIndex;
+    return true;
 }
 
 bool EfficientAT::Plugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
@@ -284,62 +370,27 @@ bool EfficientAT::Plugin::initialise(size_t channels, size_t stepSize, size_t bl
     {
         return false;
     }
-    reset();
-    auto const models = getModelPaths();
-    if(mModelIndex >= models.size())
+    if(!loadModel())
     {
-        EfficientATErr("Failed to retrieve the model: index out of range!");
-        return false;
-    }
-
-    auto const model = models.at(mModelIndex);
-    if(model.empty())
-    {
-        EfficientATErr("Failed to retrieve the model: empty path!");
         return false;
     }
 
     mBlockSize = blockSize;
 
-    try
-    {
-        mDevice = getOptimalDevice();
-        mModel = torch::jit::load(model.string());
-        mModel.eval();
-        mModel.to(mDevice);
-
-        mModelSampleRate = static_cast<double>(mModel.get_method(kSampleRateMethod)(std::vector<c10::IValue>()).to<int>());
-        mModelSegmentLength = static_cast<size_t>(mModel.get_method(kSegmentLengthMethod)(std::vector<c10::IValue>()).to<int>());
-
-        mModelClassNames.clear();
-        for(const auto& classname : mModel.get_method(kClassNamesMethod)(std::vector<c10::IValue>()).toList())
-        {
-            mModelClassNames.emplace_back(classname.get().to<std::string>());
-        }
-    }
-    catch(const c10::Error& e)
-    {
-        EfficientATErr("TorchScript error loading model: " << e.what());
-        return false;
-    }
-    catch(const std::exception& e)
-    {
-        EfficientATErr("Standard exception loading model: " << e.what());
-        return false;
-    }
-
-    if(mModelSampleRate <= 0.0 || mModelSegmentLength == 0 || mModelClassNames.empty())
-    {
-        EfficientATErr("Model returned invalid metadata parameters!");
-        return false;
-    }
+    // The hop can't be larger than the segment, otherwise samples would be skipped.
+    auto const hopSize = static_cast<size_t>(std::round(mModelSampleRate * kSegmentHopSizeMs / 1000.0));
+    mHopSize = std::clamp(hopSize, static_cast<size_t>(1), mModelSegmentLength);
+    mPaddingSize = (mModelSegmentLength - mHopSize) / 2;
 
     mBuffer.assign(mModelSegmentLength * 2, 0.0f);
     mIntermediary.assign(mModelSegmentLength, 0.0f);
     mFlatInputs.reserve(mModelSegmentLength * kBatchSize);
     mFlatIndices.reserve(kBatchSize);
     mResampler.setTargetSampleRate(mModelSampleRate);
+    mIsResampling = std::abs(mModelSampleRate / static_cast<double>(getInputSampleRate()) - 1.0) >= 0.0001;
+    mResamplerLatency = mIsResampling ? static_cast<size_t>(std::round(mResampler.getLatency() / mResampler.getRatio())) : 0;
 
+    reset();
     return true;
 }
 
@@ -355,7 +406,7 @@ std::string EfficientAT::Plugin::getName() const
 
 std::string EfficientAT::Plugin::getDescription() const
 {
-    return "Audio tagging and classification based on AudioSet (527 classes) using EfficientAT deep learning models.";
+    return "Audio tagging and classification of AudioSet sound event classes using EfficientAT deep learning models.";
 }
 
 std::string EfficientAT::Plugin::getMaker() const
@@ -410,12 +461,12 @@ EfficientAT::Plugin::OutputList EfficientAT::Plugin::getOutputDescriptors() cons
         list.push_back(std::move(d));
     }
 
-    // 527-Class Score Matrix
+    // Class Score Matrix
     {
         OutputDescriptor d;
         d.identifier = "matrix";
         d.name = "AudioSet Matrix";
-        d.description = "Probability distribution across all 527 AudioSet classes";
+        d.description = "Probability of each AudioSet class";
         d.unit = "";
         d.hasFixedBinCount = true;
         d.binCount = mModelClassNames.size();
@@ -440,7 +491,7 @@ EfficientAT::Plugin::ParameterList EfficientAT::Plugin::getParameterDescriptors(
         ParameterDescriptor param;
         param.identifier = "model";
         param.name = "Model";
-        param.description = "The model used to generate the tokens";
+        param.description = "The EfficientAT model used for the analysis";
         param.unit = "";
         for(auto const& model : models)
         {
@@ -493,7 +544,7 @@ EfficientAT::Plugin::OutputExtraList EfficientAT::Plugin::getOutputExtraDescript
         OutputExtraDescriptor d;
         d.identifier = "score";
         d.name = "Score";
-        d.description = "The score of the detected category";
+        d.description = "The highest score of the detected category over its consecutive occurrences";
         d.unit = "";
         d.hasKnownExtents = true;
         d.minValue = 0.0f;
@@ -518,6 +569,34 @@ EfficientAT::Plugin::OutputExtraList EfficientAT::Plugin::getOutputExtraDescript
     return list;
 }
 
+namespace
+{
+    // Returns true if the RMS level of the samples is above the silence threshold.
+    bool isAboveSilenceThreshold(std::vector<float>::const_iterator begin, std::vector<float>::const_iterator end)
+    {
+        static auto const linearThreshold = std::pow(10.0, static_cast<double>(kMinimumEnergyThreshold) / 20.0);
+        auto const numSamples = std::distance(begin, end);
+        if(numSamples <= 0)
+        {
+            return false;
+        }
+        auto const sumSquares = std::accumulate(begin, end, 0.0, [](auto const sum, auto const amp)
+                                                {
+                                                    return sum + static_cast<double>(amp) * static_cast<double>(amp);
+                                                });
+        return std::sqrt(sumSquares / static_cast<double>(numSamples)) >= linearThreshold;
+    }
+} // namespace
+
+void EfficientAT::Plugin::flushPendingMarker(FeatureSet& fs)
+{
+    if(mPendingMarker.has_value())
+    {
+        fs[0].push_back(std::move(*mPendingMarker));
+        mPendingMarker.reset();
+    }
+}
+
 void EfficientAT::Plugin::runModel(FeatureSet& fs)
 {
     if(mFlatIndices.empty())
@@ -536,9 +615,6 @@ void EfficientAT::Plugin::runModel(FeatureSet& fs)
     {
         torch::NoGradGuard no_grad;
 
-        auto const hopSizeSamples = static_cast<size_t>(
-            static_cast<double>(mModelSampleRate) * kSegmentHopSizeMs / 1000.0);
-
         auto tensorIn = torch::from_blob(
                             mFlatInputs.data(),
                             {static_cast<long long>(mFlatIndices.size()), 1, static_cast<long long>(mModelSegmentLength)},
@@ -552,38 +628,56 @@ void EfficientAT::Plugin::runModel(FeatureSet& fs)
         auto const numClasses = static_cast<size_t>(tensorOut.size(-1));
         if(numClasses != mModelClassNames.size() || numClasses == 0)
         {
-            assert(false && "Model output class count mismatch");
+            EfficientATErr("The model returned " << numClasses << " classes instead of " << mModelClassNames.size());
             mFlatInputs.clear();
             mFlatIndices.clear();
             return;
         }
 
+        auto const sampleRate = static_cast<unsigned int>(mModelSampleRate);
         auto const* frameStart = tensorOut.data_ptr<float>();
-        auto& markerList = fs[0]; // Top-1 Marker
-        auto& matrixList = fs[1]; // 527-class Matrix
+        auto& matrixList = fs[1];
 
         for(size_t index = 0; index < mFlatIndices.size(); ++index)
         {
             auto const* frameEnd = std::next(frameStart, static_cast<std::ptrdiff_t>(numClasses));
             auto const framePosition = mFlatIndices.at(index);
 
-            auto const timestamp = Vamp::RealTime::frame2RealTime(
-                framePosition * hopSizeSamples, static_cast<unsigned int>(mModelSampleRate));
-            auto const duration = Vamp::RealTime::frame2RealTime(
-                hopSizeSamples, static_cast<unsigned int>(mModelSampleRate));
+            // The window is centered on the hop so the frame covers [position * hop, (position + 1) * hop[
+            // (the last frame is clipped to the end of the audio)
+            auto const frameStartSample = framePosition * mHopSize;
+            auto const frameEndSample = std::min(frameStartSample + mHopSize, std::max(mAudioEnd, frameStartSample));
+            auto const timestamp = Vamp::RealTime::frame2RealTime(static_cast<long>(frameStartSample), sampleRate);
+            auto const duration = Vamp::RealTime::frame2RealTime(static_cast<long>(frameEndSample - frameStartSample), sampleRate);
 
             auto const maxIt = std::max_element(frameStart, frameEnd);
             auto const bestClassIndex = static_cast<size_t>(std::distance(frameStart, maxIt));
             auto const bestScore = *maxIt;
+            auto const& label = mModelClassNames.at(bestClassIndex);
 
-            Feature markerFeature;
-            markerFeature.hasTimestamp = true;
-            markerFeature.timestamp = timestamp;
-            markerFeature.hasDuration = true;
-            markerFeature.duration = duration;
-            markerFeature.label = mModelClassNames.at(bestClassIndex);
-            markerFeature.values = {bestScore, 1.0f};
-            markerList.push_back(std::move(markerFeature));
+            // Consecutive frames with the same top-1 category are merged into a single marker
+            if(mPendingMarker.has_value() && mPendingMarker->label == label && mPendingMarkerLastFrame + 1 == framePosition)
+            {
+                mPendingMarkerLastFrame = framePosition;
+                auto const numFrames = mPendingMarkerLastFrame - mPendingMarkerFirstFrame + 1;
+                mPendingMarker->duration = Vamp::RealTime::frame2RealTime(static_cast<long>(frameEndSample - mPendingMarkerFirstFrame * mHopSize), sampleRate);
+                mPendingMarker->values[0] = std::max(mPendingMarker->values[0], bestScore);
+                mPendingMarker->values[1] = static_cast<float>(numFrames);
+            }
+            else
+            {
+                flushPendingMarker(fs);
+                Feature markerFeature;
+                markerFeature.hasTimestamp = true;
+                markerFeature.timestamp = timestamp;
+                markerFeature.hasDuration = true;
+                markerFeature.duration = duration;
+                markerFeature.label = label;
+                markerFeature.values = {bestScore, 1.0f};
+                mPendingMarker = std::move(markerFeature);
+                mPendingMarkerFirstFrame = framePosition;
+                mPendingMarkerLastFrame = framePosition;
+            }
 
             Feature matrixFeature;
             matrixFeature.hasTimestamp = true;
@@ -596,10 +690,6 @@ void EfficientAT::Plugin::runModel(FeatureSet& fs)
             frameStart = frameEnd;
         }
     }
-    catch(const c10::Error& e)
-    {
-        EfficientATErr("TorchScript error during inference: " << e.what());
-    }
     catch(const std::exception& e)
     {
         EfficientATErr("Exception during inference: " << e.what());
@@ -609,69 +699,47 @@ void EfficientAT::Plugin::runModel(FeatureSet& fs)
     mFlatIndices.clear();
 }
 
-EfficientAT::Plugin::FeatureSet EfficientAT::Plugin::process(float const* const* inputBuffers, [[maybe_unused]] Vamp::RealTime timestamp)
+void EfficientAT::Plugin::pushInput(float const* inputBuffer, size_t numSamples)
 {
-    auto const blockSize = mBlockSize;
-    auto const* inputBuffer = inputBuffers[0];
-    auto const sampleRateRatio = static_cast<double>(mModelSampleRate) / static_cast<double>(getInputSampleRate());
-
-    if(std::abs(sampleRateRatio - 1.0) < 0.0001)
+    if(!mIsResampling)
     {
-        if((mBuffer.size() - mBufferWritePosition) < blockSize)
+        if((mBuffer.size() - mBufferWritePosition) < numSamples)
         {
-            mBuffer.resize(mBufferWritePosition + blockSize, 0.0f);
+            mBuffer.resize(mBufferWritePosition + numSamples, 0.0f);
         }
-        std::copy(inputBuffer, inputBuffer + blockSize, std::next(mBuffer.begin(), static_cast<std::ptrdiff_t>(mBufferWritePosition)));
-        mBufferWritePosition += blockSize;
+        std::copy(inputBuffer, inputBuffer + numSamples, std::next(mBuffer.begin(), static_cast<std::ptrdiff_t>(mBufferWritePosition)));
+        mBufferWritePosition += numSamples;
     }
     else
     {
-        auto const expectedSize = static_cast<size_t>(std::ceil(static_cast<double>(blockSize) * sampleRateRatio)) + 4;
+        auto const expectedSize = static_cast<size_t>(std::ceil(static_cast<double>(numSamples) / mResampler.getRatio())) + 4;
         if((mBuffer.size() - mBufferWritePosition) < expectedSize)
         {
             mBuffer.resize(mBufferWritePosition + expectedSize, 0.0f);
         }
-        auto const result = mResampler.process(blockSize, inputBuffer, expectedSize, mBuffer.data() + mBufferWritePosition);
-        if(std::get<0>(result) != blockSize)
+        auto const result = mResampler.process(numSamples, inputBuffer, expectedSize, mBuffer.data() + mBufferWritePosition);
+        if(std::get<0>(result) != numSamples)
         {
-            EfficientATErr("Resampler failed to consume all input samples! Consumed " << std::get<0>(result) << " out of " << blockSize);
+            EfficientATErr("Resampler failed to consume all input samples! Consumed " << std::get<0>(result) << " out of " << numSamples);
         }
         mBufferWritePosition += std::get<1>(result);
     }
+}
+
+EfficientAT::Plugin::FeatureSet EfficientAT::Plugin::process(float const* const* inputBuffers, [[maybe_unused]] Vamp::RealTime timestamp)
+{
+    pushInput(inputBuffers[0], mBlockSize);
 
     FeatureSet fs;
-    auto const hopSizeSamples = static_cast<size_t>(static_cast<double>(mModelSampleRate) * kSegmentHopSizeMs / 1000.0);
-
+    // mHopSize <= mModelSegmentLength so the read position never exceeds the write position
     while(mBufferWritePosition - mBufferReadPosition >= mModelSegmentLength)
     {
-        auto const startPosition = mBufferReadPosition;
-        std::copy_n(std::next(mBuffer.cbegin(), static_cast<std::ptrdiff_t>(startPosition)), mModelSegmentLength, mIntermediary.begin());
-
-        static auto const linearThreshold = std::pow(10.0f, kMinimumEnergyThreshold / 20.0f);
-        auto const isAboveThreshold = [&, this]()
+        auto const windowStart = std::next(mBuffer.cbegin(), static_cast<std::ptrdiff_t>(mBufferReadPosition));
+        // Only the central hop of the window is labelled, so only this part is used for the silence gating
+        auto const hopStart = std::next(windowStart, static_cast<std::ptrdiff_t>(mPaddingSize));
+        if(isAboveSilenceThreshold(hopStart, std::next(hopStart, static_cast<std::ptrdiff_t>(mHopSize))))
         {
-            size_t i = 0;
-            while(i < mIntermediary.size())
-            {
-                auto const numSamples = std::min(mIntermediary.size() - i, hopSizeSamples);
-                auto const startIt = std::next(mIntermediary.begin(), static_cast<std::ptrdiff_t>(i));
-                auto const endIt = std::next(startIt, static_cast<std::ptrdiff_t>(numSamples));
-                auto const sumSquares = std::accumulate(startIt, endIt, 0.0f, [](auto const sum, const auto amp)
-                                                        {
-                                                            return sum + amp * amp;
-                                                        });
-                if(std::sqrt(sumSquares / static_cast<float>(numSamples)) >= linearThreshold)
-                {
-                    return true;
-                }
-                i += numSamples;
-            }
-            return false;
-        }();
-
-        if(isAboveThreshold)
-        {
-            mFlatInputs.insert(mFlatInputs.end(), mIntermediary.cbegin(), mIntermediary.cend());
+            mFlatInputs.insert(mFlatInputs.end(), windowStart, std::next(windowStart, static_cast<std::ptrdiff_t>(mModelSegmentLength)));
             mFlatIndices.push_back(mNumFrameProcessed);
             if(mFlatIndices.size() >= kBatchSize)
             {
@@ -679,7 +747,7 @@ EfficientAT::Plugin::FeatureSet EfficientAT::Plugin::process(float const* const*
             }
         }
 
-        mBufferReadPosition += hopSizeSamples;
+        mBufferReadPosition += mHopSize;
         ++mNumFrameProcessed;
     }
 
@@ -697,34 +765,35 @@ EfficientAT::Plugin::FeatureSet EfficientAT::Plugin::process(float const* const*
 EfficientAT::Plugin::FeatureSet EfficientAT::Plugin::getRemainingFeatures()
 {
     FeatureSet fs;
-    auto const hopSizeSamples = static_cast<size_t>(
-        static_cast<double>(mModelSampleRate) * kSegmentHopSizeMs / 1000.0);
 
-    static auto const linearThreshold = std::pow(10.0f, kMinimumEnergyThreshold / 20.0f);
+    // Flush the samples retained by the resampler
+    if(mIsResampling)
+    {
+        // The last mResamplerLatency samples of the audio are still in the
+        // resampler, the extra samples generated by the zeros are discarded.
+        auto const audioEnd = mBufferWritePosition + mResamplerLatency;
+        std::vector<float> const zeros(static_cast<size_t>(std::ceil(mResampler.getLatency())) + 1, 0.0f);
+        pushInput(zeros.data(), zeros.size());
+        mBufferWritePosition = std::min(mBufferWritePosition, audioEnd);
+    }
 
-    // Slide the window by hopSizeSamples until all remaining samples are consumed
-    while(mBufferReadPosition < mBufferWritePosition)
+    // The position of the end of the audio relative to the start of the first hop
+    mAudioEnd = mNumFrameProcessed * mHopSize + (mBufferWritePosition - mBufferReadPosition) - std::min(mPaddingSize, mBufferWritePosition - mBufferReadPosition);
+
+    // Slide the window until its central hop starts after the end of the audio,
+    // the end of the window is zero-padded.
+    while(mBufferReadPosition + mPaddingSize < mBufferWritePosition)
     {
         auto const remainingSamples = mBufferWritePosition - mBufferReadPosition;
         auto const samplesToCopy = std::min(remainingSamples, mModelSegmentLength);
 
         std::fill(mIntermediary.begin(), mIntermediary.end(), 0.0f);
-        std::copy_n(
-            std::next(mBuffer.cbegin(), static_cast<std::ptrdiff_t>(mBufferReadPosition)),
-            samplesToCopy,
-            mIntermediary.begin());
+        std::copy_n(std::next(mBuffer.cbegin(), static_cast<std::ptrdiff_t>(mBufferReadPosition)), samplesToCopy, mIntermediary.begin());
 
-        // Check energy only on the valid (non-zero-padded) samples
-        auto const sumSquares = std::accumulate(
-            mIntermediary.cbegin(),
-            std::next(mIntermediary.cbegin(), static_cast<std::ptrdiff_t>(samplesToCopy)),
-            0.0f,
-            [](auto const sum, auto const amp)
-            {
-                return sum + amp * amp;
-            });
-
-        if(std::sqrt(sumSquares / static_cast<float>(samplesToCopy)) >= linearThreshold)
+        // Check the energy only on the valid (non-zero-padded) samples of the central hop
+        auto const hopStart = std::next(mIntermediary.cbegin(), static_cast<std::ptrdiff_t>(mPaddingSize));
+        auto const numValidSamples = std::min(mHopSize, remainingSamples - mPaddingSize);
+        if(isAboveSilenceThreshold(hopStart, std::next(hopStart, static_cast<std::ptrdiff_t>(numValidSamples))))
         {
             mFlatInputs.insert(mFlatInputs.end(), mIntermediary.cbegin(), mIntermediary.cend());
             mFlatIndices.push_back(mNumFrameProcessed);
@@ -734,12 +803,13 @@ EfficientAT::Plugin::FeatureSet EfficientAT::Plugin::getRemainingFeatures()
             }
         }
 
-        mBufferReadPosition += hopSizeSamples;
+        mBufferReadPosition += mHopSize;
         ++mNumFrameProcessed;
     }
 
-    // Flush any remaining frames in the batch
+    // Flush any remaining frames in the batch and the last marker
     runModel(fs);
+    flushPendingMarker(fs);
 
     mBufferWritePosition = 0;
     mBufferReadPosition = 0;
