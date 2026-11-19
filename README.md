@@ -1,5 +1,9 @@
 # Efficient AT
 
+The EfficientAT Vamp plugin is an implementation of [EfficientAT](https://github.com/fschmid56/EfficientAT), a set of pre-trained models ready for audio tagging, developed at [CPJKU](https://www.jku.at/) as a [Vamp Plugin](https://www.vamp-plugins.org/).
+
+The Basic Pitch Vamp Plugin has been designed for use in the free audio analysis application Partiels.
+
 ## Model export
 
 The plugin runs TorchScript versions of the [EfficientAT](https://github.com/fschmid56/EfficientAT) models pretrained on AudioSet (527 classes). The script [Resources/export_ts.py](Resources/export_ts.py) generates them:
@@ -39,3 +43,20 @@ To export other models, edit the `MODELS` list of the script (the names are the 
 ### Use in the plugin
 
 At configure time, CMake downloads the models of the [models release](https://github.com/gasLB/EfficientAT_vamp_plugin/releases/tag/models) into `<build directory>/models` (see [Resources/download_model.cmake](Resources/download_model.cmake)) and only downloads the files that are missing. To test locally exported models, copy them into `<build directory>/models` before building. To distribute them, upload them to the `models` release.
+
+## Compilation
+
+The compilation system is based on [CMake](https://cmake.org/), for example:
+```
+cmake . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+ctest -C Debug -VV --test-dir build
+```
+
+## Credits
+
+- **[EfficientAT Vamp Plugin](https://www.ircam.fr/)** by Gaston Fontagneu, Pierre Guillot at IRCAM IMR Department.
+- **[EfficientAT](https://github.com/fschmid56/EfficientAT)** models by Folrian Schmid, Khaled Koutini and Gherard Widmer at Institute of Computational Perception of Johannes Kepler University (https://www.jku.at/)
+- **[LibTorch](https://github.com/pytorch/pytorch)** originally developed by Meta Platforms. 
+- **[Vamp SDK](https://github.com/vamp-plugins/vamp-plugin-sdk)** by Chris Cannam, copyright (c) 2005-2024 Chris Cannam and Centre for Digital Music, Queen Mary, University of London.
+- **[Ircam Vamp Extension](https://github.com/Ircam-Partiels/ircam-vamp-extension)** by Pierre Guillot at [IRCAM IMR department](https://www.ircam.fr/).
