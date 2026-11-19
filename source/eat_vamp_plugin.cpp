@@ -360,6 +360,34 @@ bool EfficientAT::Plugin::loadModel()
         EfficientATErr("The model " << models.at(mModelIndex).string() << " returned invalid metadata");
         return false;
     }
+
+    // Some exported models can't run on an accelerator (e.g. the TorchScript trace hardcodes the CPU
+    // device of the mel filter bank, which fails on MPS), so a dry run validates the device and falls
+    // back to the CPU if necessary.
+    if(mDevice != torch::Device(torch::kCPU))
+    {
+        try
+        {
+            torch::NoGradGuard no_grad;
+            auto const dummy = torch::zeros({1, 1, static_cast<long long>(mModelSegmentLength)}, torch::kFloat32).to(mDevice);
+            mModel.get_method(kForwardMethod)(std::vector<torch::jit::IValue>{dummy});
+        }
+        catch(const std::exception& e)
+        {
+            EfficientATErr("The model can't run on " << mDevice << ", falling back to CPU");
+            EfficientATDbg(e.what());
+            try
+            {
+                mDevice = torch::Device(torch::kCPU);
+                mModel.to(mDevice);
+            }
+            catch(const std::exception& e2)
+            {
+                EfficientATErr("Failed to move the model to CPU: " << e2.what());
+                return false;
+            }
+        }
+    }
     mLoadedModelIndex = mModelIndex;
     return true;
 }
@@ -436,7 +464,7 @@ size_t EfficientAT::Plugin::getPreferredBlockSize() const
 
 size_t EfficientAT::Plugin::getPreferredStepSize() const
 {
-    return getPreferredBlockSize();
+    return static_cast<size_t>(0);
 }
 
 EfficientAT::Plugin::OutputList EfficientAT::Plugin::getOutputDescriptors() const
@@ -737,7 +765,7 @@ EfficientAT::Plugin::FeatureSet EfficientAT::Plugin::process(float const* const*
         auto const windowStart = std::next(mBuffer.cbegin(), static_cast<std::ptrdiff_t>(mBufferReadPosition));
         // Only the central hop of the window is labelled, so only this part is used for the silence gating
         auto const hopStart = std::next(windowStart, static_cast<std::ptrdiff_t>(mPaddingSize));
-        if(isAboveSilenceThreshold(hopStart, std::next(hopStart, static_cast<std::ptrdiff_t>(mHopSize))))
+        //if(isAboveSilenceThreshold(hopStart, std::next(hopStart, static_cast<std::ptrdiff_t>(mHopSize))))
         {
             mFlatInputs.insert(mFlatInputs.end(), windowStart, std::next(windowStart, static_cast<std::ptrdiff_t>(mModelSegmentLength)));
             mFlatIndices.push_back(mNumFrameProcessed);
