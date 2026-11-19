@@ -35,7 +35,7 @@ pip install -r Resources/requirements.txt
 
 ```bash
 source .venv/bin/activate
-python Resources/export_ts.py
+python Resources/export_models.py
 ```
 
 To export other models, edit the `MODELS` list of the script (the names are the keys of `pretrained_models` in the EfficientAT file `models/mn/model.py`).

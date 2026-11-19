@@ -1,4 +1,4 @@
-# Python dependencies of Resources/export_ts.py (Python 3.12)
+# Python dependencies of Resources/export_models.py (Python 3.12)
 # torch must match the LibTorch version of the plugin (see Resources/libtorch.cmake)
 torch==2.4.1
 torchvision==0.19.1

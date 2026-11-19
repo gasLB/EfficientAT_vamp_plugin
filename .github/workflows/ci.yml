@@ -35,17 +35,17 @@ jobs:
   #  - name: Fetch model release metadata
   #    env:
   #        GITHUB_TOKEN: ${{ github.token }}
-  #    run: cmake -DOUTPUT_DIR=${{ github.workspace }}/build -DGENERATE_ASSETS_ONLY=ON -P Resources/download_model.cmake
+  #    run: cmake -DOUTPUT_DIR=${{ github.workspace }}/build -DGENERATE_ASSETS_ONLY=ON -P Resources/download_models.cmake
   #  - name: Cache
   #    uses: actions/cache@v6
   #    with:
   #      path: ./build/models
-  #      key: models-${{ hashFiles('Resources/download_model.cmake', 'build/efficientat_release_assets.json') }}
+  #      key: models-${{ hashFiles('Resources/download_models.cmake', 'build/efficientat_release_assets.json') }}
   #      enableCrossOsArchive: true
   #  - name: Download
   #    env:
   #        GITHUB_TOKEN: ${{ github.token }}
-  #    run: cmake -DOUTPUT_DIR=${{ github.workspace }}/build -P Resources/download_model.cmake
+  #    run: cmake -DOUTPUT_DIR=${{ github.workspace }}/build -P Resources/download_models.cmake
   # Compiles, tests and packages the plugin for Ubuntu.
   Ubuntu:
     runs-on: ubuntu-22.04
@@ -57,12 +57,12 @@ jobs:
   #  - name: Fetch model release metadata
   #    env:
   #    GITHUB_TOKEN: ${{ github.token }}
-  #    run: cmake -DOUTPUT_DIR=${{ github.workspace }}/build -DGENERATE_ASSETS_ONLY=ON -P Resources/download_model.cmake
+  #    run: cmake -DOUTPUT_DIR=${{ github.workspace }}/build -DGENERATE_ASSETS_ONLY=ON -P Resources/download_models.cmake
   #  - name: Cache
   #    uses: actions/cache@v6
   #    with:
   #      path: ./build/models
-  #      key: models-${{ hashFiles('Resources/download_model.cmake', 'build/efficientat_release_assets.json') }}
+  #      key: models-${{ hashFiles('Resources/download_models.cmake', 'build/efficientat_release_assets.json') }}
   #      enableCrossOsArchive: true
     - name: Cache
       uses: actions/cache@v6
@@ -117,12 +117,12 @@ jobs:
     # - name: Fetch model release metadata
     #   env:
     #     GITHUB_TOKEN: ${{ github.token }}
-    #   run: cmake -DOUTPUT_DIR=${{ github.workspace }}/build -DGENERATE_ASSETS_ONLY=ON -P Resources/download_model.cmake
+    #   run: cmake -DOUTPUT_DIR=${{ github.workspace }}/build -DGENERATE_ASSETS_ONLY=ON -P Resources/download_models.cmake
     # - name: Cache
     #   uses: actions/cache@v6
     #   with:
     #     path: ./build/models
-    #     key: models-${{ hashFiles('Resources/download_model.cmake', 'build/efficientat_release_assets.json') }}
+    #     key: models-${{ hashFiles('Resources/download_models.cmake', 'build/efficientat_release_assets.json') }}
     #     enableCrossOsArchive: true
     - name: Cache
       uses: actions/cache@v6
@@ -183,12 +183,12 @@ jobs:
     # - name: Fetch model release metadata
     #   env:
     #     GITHUB_TOKEN: ${{ github.token }}
-    #   run: cmake -DOUTPUT_DIR=${{ github.workspace }}/build -DGENERATE_ASSETS_ONLY=ON -P Resources/download_model.cmake
+    #   run: cmake -DOUTPUT_DIR=${{ github.workspace }}/build -DGENERATE_ASSETS_ONLY=ON -P Resources/download_models.cmake
     # - name: Cache
     #   uses: actions/cache@v6
     #   with:
     #     path: ./build/models
-    #     key: models-${{ hashFiles('Resources/download_model.cmake', 'build/efficientat_release_assets.json') }}
+    #     key: models-${{ hashFiles('Resources/download_models.cmake', 'build/efficientat_release_assets.json') }}
     #     enableCrossOsArchive: true
     - name: Cache
       uses: actions/cache@v6
