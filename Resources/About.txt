@@ -1,0 +1,5 @@
+The EfficientAT Vamp plugin is an implementation of EfficientAT, a set of pre-trained models ready for audio tagging, developed by Folrian Schmid, Khaled Koutini and Gherard Widmer at LIT Artificial Intelligence Lab, Institute of Computational Perception and of Johannes Kepler University (CPJKU).
+
+- EfficientAT Vamp plug-in by Gaston Fontagneu, Pierre Guillot at Ircam (https://www.ircam.fr/)
+- EfficientAT by Folrian Schmid, Khaled Koutini and Gherard Widmer at Institute of Computational Perception of Johannes Kepler University (https://www.jku.at/)
+- Vamp by the Centre for Digital Music, Queen Mary, University of London (www.vamp-plugins.org)
