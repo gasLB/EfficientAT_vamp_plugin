@@ -1,0 +1,11 @@
+build*
+release
+package
+*.zip
+*.tar
+*.pdf
+*.DS_Store
+.venv/
+models/
+.cache/
+__pycache__/
